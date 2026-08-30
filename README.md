@@ -112,39 +112,64 @@ flowchart TD
     F3 --> G
 ```
 
-## Problem Formulation
+\section{Problem Formulation}
 
-### Physical Hallucination Definition
+Let $\X_t \in \mathbb{R}^{C \times H \times W}$ denote the true atmospheric state at time $t$, where $C$ is the number of prognostic variables, and $H,W$ are the spatial grid dimensions. A foundation model $f_\theta$ produces a forecast $\hat{\X}_{t+\tau} = f_\theta(\X_t)$ for lead time $\tau$. The forecast error is defined as $\bm{\epsilon} = \hat{\X}_{t+\tau} - \X_{t+\tau} \in \mathbb{R}^{C \times H \times W}$, and we measure its magnitude via a suitable norm $\|\bm{\epsilon}\|$.
 
-Let $\X_t \in \mathbb{R}^{C \times H \times W}$ denote the true atmospheric state at time $t$, and let $\hat{\X}_{t+\tau} = f_\theta(\X_t)$ be a forecast with error $\bm{\epsilon} = \hat{\X} - \X$, measured by $\|\bm{\epsilon}\|$. To assess physical plausibility, we define residual functionals $\mathcal{R} = \{r_1, \dots, r_K\}$ that measure violations of physical laws—e.g., mass divergence, hydrostatic balance, and spectral slope. Each residual is differentiable and its magnitude is interpretable in physical units.
+To assess physical plausibility, we define a set of residual functionals $\mathcal{R} = \{r_1, \dots, r_K\}$, where each $r_k : \mathbb{R}^{C \times H \times W} \to \mathbb{R}$ or $\mathbb{R}^{H \times W}$ measures the violation of a specific physical law. For example, $r_1$ may quantify mass divergence, $r_2$ hydrostatic imbalance, and $r_3$ spectral slope deviation. Each residual is assumed differentiable and its magnitude is interpretable in physical units.
 
-A **physical hallucination** is defined as a forecast where either:
+\subsection{Physical Hallucination}
 
-1. $\|r_k(\hat{\X})\| > \theta_k$ **and** $\|\bm{\epsilon}\| < \delta$  (accurate but inconsistent), or  
-2. $\|r_k(\hat{\X})\| > \Theta_k$ (severe violation),
+A forecast $\hat{\X}$ is said to be a \emph{physical hallucination} if there exists at least one residual $k$ such that either of the following conditions holds:
 
-for some residual $k$. Here $\theta_k$ and $\Theta_k$ are climatological and severe thresholds, and $\delta$ is an error tolerance.
+\begin{enumerate}
+\item \emph{Accurate but inconsistent:} 
+   \[
+   \|r_k(\hat{\X})\| > \theta_k \quad \text{and} \quad \|\bm{\epsilon}\| < \delta,
+   \]
+   where $\theta_k > 0$ is a climatological threshold and $\delta > 0$ is an error tolerance.
+\item \emph{Severe violation:} 
+   \[
+   \|r_k(\hat{\X})\| > \Theta_k,
+   \]
+   where $\Theta_k \gg \theta_k$ is a severe violation threshold.
+\end{enumerate}
 
-### Diagnostic Task
+Here $\theta_k$ and $\Theta_k$ are estimated from the training data distribution, and $\delta$ is typically chosen as the median RMSE of the foundation model on the validation set.
 
-The diagnostic task learns a mapping $\Phi$ that produces:
+\subsection{Diagnostic Task}
 
-- Hallucination score $h \in [0,1]$
-- Localisation heatmap $m \in [0,1]^{H \times W}$
-- Violation type $d \in \{1,\dots,K\}$
-- Beta parameters $(\alpha, \beta)$ for uncertainty
+Given a forecast $\hat{\X}_{t+\tau}$ (and optionally recent states $\{\X_t, \X_{t-1}, \dots\}$ and a reference $\X_{t+\tau}$), the diagnostic task is to learn a mapping $\Phi$ that outputs:
 
-### Multi‑Task Loss
+\begin{itemize}
+\item Hallucination score: $h = \Phi_{\text{det}}(\hat{\X}) \in [0,1]$,
+\item Localisation heatmap: $m = \Phi_{\text{loc}}(\hat{\X}) \in [0,1]^{H \times W}$,
+\item Violation type: $d = \Phi_{\text{diag}}(\hat{\X}) \in \{1,\dots,K\}$,
+\item Uncertainty parameters: $(\alpha,\beta) = \Phi_{\text{unc}}(\hat{\X}) \in \mathbb{R}_{>0}^2$,
+  which parameterise a Beta distribution modelling the confidence of the hallucination score.
+\end{itemize}
 
-The training objective is a weighted combination:
+\subsection{Multi-Task Loss}
 
-$$
-\mathcal{L}_{\text{total}} =
+The training objective is a weighted combination of five loss terms:
+
+\[
+\mathcal{L}_{\text{total}} = 
 \lambda_{\text{det}}\mathcal{L}_{\text{BCE}} +
 \lambda_{\text{loc}}\mathcal{L}_{\text{Dice}} +
 \lambda_{\text{diag}}\mathcal{L}_{\text{CE}} +
 \lambda_{\text{unc}}\mathcal{L}_{\text{NLL}} +
-\lambda_{\text{cont}}\mathcal{L}_{\text{InfoNCE}}
-$$
+\lambda_{\text{cont}}\mathcal{L}_{\text{InfoNCE}},
+\]
 
-with adaptive weighting for $\lambda_{\cdot}$ (learned automatically via uncertainty weighting).
+where:
+\begin{itemize}
+\item $\mathcal{L}_{\text{BCE}}$: binary cross-entropy for detection,
+\item $\mathcal{L}_{\text{Dice}}$: Dice loss for localisation,
+\item $\mathcal{L}_{\text{CE}}$: cross-entropy for diagnosis,
+\item $\mathcal{L}_{\text{NLL}}$: negative log-likelihood for uncertainty calibration,
+\item $\mathcal{L}_{\text{InfoNCE}}$: InfoNCE contrastive loss,
+\item $\lambda_{\cdot}$: weighting coefficients.
+\end{itemize}
+
+To avoid manual tuning, the weights $\lambda_{\cdot}$ are learned automatically via gradient-based weighting (see Section~\ref{sec:adaptive_loss}), which dynamically balances the contributions of each task.
