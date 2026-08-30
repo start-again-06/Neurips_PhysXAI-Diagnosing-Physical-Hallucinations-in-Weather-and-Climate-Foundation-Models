@@ -354,4 +354,166 @@ $$
 
 Setting this to zero gives $\sigma_i^2 = \mathcal{L}_i$, meaning tasks with larger loss are automatically downweighted. This formulation improves convergence and final performance in multi‑task learning settings.
 
+## Architecture Components
+
+### Physical Residual Branches
+
+We define five families of physical residual functionals, each quantifying a specific physical law violation:
+
+| **Branch** | **Variables** | **Mathematical Formulation** |
+|------------|---------------|------------------------------|
+| **Conservation** | Mass, Moisture, Energy | \(r_M = \dfrac{\|M_{\text{fore}} - M_{\text{ref}}\|}{M_{\text{ref}}}\) |
+| **Dynamics** | Hydrostatic, Geostrophic | \(r_H = \dfrac{\partial \Phi}{\partial p} + \dfrac{RT}{p}\),  \(r_G = \left\|\mathbf{u} + \dfrac{1}{f} \nabla \Phi\right\|\) |
+| **Spectral** | Kinetic Energy Spectrum, Slope | \(r_S = \left( \sum_k \left( \hat{E}_{\text{fore}}(k) - \hat{E}_{\text{ref}}(k) \right)^2 \right)^{1/2}\) |
+| **Cross‑Variable** | Clausius–Clapeyron, Potential Temperature | \(r_{CC} = \dfrac{\|q_s(T,p) - q\|}{q_s(T,p)}\) |
+| **Spatiotemporal** | Temporal Coherence | \(r_{\text{temp}} = \|\partial_t \X - \text{smooth}(\partial_t \X)\|\) |
+
+Each branch outputs a spatial residual map, which is passed through a small convolutional subnetwork to produce branch‑specific features \(\mathbf{F}_k \in \mathbb{R}^{D \times H \times W}\).
+
+---
+
+### Cross‑Physics Attention Fusion
+
+The fused representation \(\mathbf{Z}\) is computed as:
+
+\[
+\mathbf{Z} = \sum_{k=1}^5 \text{softmax}\left( \frac{\mathbf{Q}\mathbf{K}_k^\top}{\sqrt{D}} \right) \mathbf{V}_k \in \mathbb{R}^{D \times H \times W},
+\]
+
+where:
+- \(\mathbf{Q}\) is a linear projection of the encoder features \(\mathbf{E}\),
+- \(\mathbf{K}_k, \mathbf{V}_k\) are linear projections of each branch feature \(\mathbf{F}_k\).
+
+This allows the model to attend to the most relevant physical features for each spatial location.
+
+---
+
+### Contrastive Learning
+
+The InfoNCE loss encourages physically consistent states to cluster together in the latent space:
+
+\[
+\mathcal{L}_{\text{InfoNCE}} = -\mathbb{E}\left[ \log \frac{\exp(\mathbf{z}_a \cdot \mathbf{z}_b / \tau)}{\exp(\mathbf{z}_a \cdot \mathbf{z}_b / \tau) + \sum_{n \in \mathcal{N}} \exp(\mathbf{z}_a \cdot \mathbf{z}_n / \tau)} \right],
+\]
+
+where \(\mathbf{z}\) is the projected latent vector, \(\tau > 0\) is a temperature parameter, and \(\mathcal{N}\) is the set of negative samples.
+
+---
+
+## Theoretical Guarantees
+
+### Theorem 1: Latent‑Space Isometry
+
+Under the conditions of residual separation, minimising the InfoNCE loss with a linear projection head and \(\tau \to 0\) yields:
+
+\[
+\|\mathbf{z}(\X_1) - \mathbf{z}(\X_2)\| = \kappa \|\mathbf{r}(\X_1) - \mathbf{r}(\X_2)\| + o(1),
+\]
+
+for some constant \(\kappa > 0\), in the limit of infinite negative samples.
+
+This ensures that the hallucination score \(h = \sigma(\mathbf{w}^\top \mathbf{z})\) directly reflects physical residuals rather than spurious error correlations.
+
+### Proposition 1: Error‑Consistency Trade‑off
+
+If the forecast error is bounded by \(\|\bm{\epsilon}\| \le \eta\), the decision boundary in latent space is separated from the physically consistent manifold by a margin:
+
+\[
+\gamma = \kappa \min_k \theta_k - \kappa \max_k \|\mathbf{r}(\hat{\X}) - \mathbf{r}(\X)\|,
+\]
+
+which is positive for physically consistent forecasts. Thus, the model does not incorrectly flag physically consistent forecasts as hallucinations.
+
+---
+
+## Datasets and Foundation Models
+
+### Evaluation Datasets
+
+| **Dataset** | **Source** | **Resolution** | **Period** | **Use** |
+|-------------|------------|----------------|------------|---------|
+| **ERA5** | ECMWF | 0.25°, hourly | 1979–present | Training, Validation |
+| **WeatherBench 2** | Google | 0.25°, 6‑hourly | 1959–2023 | Training, Reference |
+| **MERRA‑2** | NASA GMAO | 0.625° × 0.5°, 3‑hourly | 1980–present | Independent Test |
+| **IBTrACS** | NOAA/NCEI | Storm tracks | 1840s–present | TC Case Studies |
+
+### Chronological Split
+
+| **Split** | **Period** |
+|-----------|------------|
+| Training | 1979–2017 |
+| Validation | 2018–2019 |
+| Testing | 2020–2022 |
+
+### Foundation Models
+
+- **GraphCast** – GNN on icosahedral mesh
+- **Pangu‑Weather** – 3D Vision Transformer
+- **NeuralGCM** – Hybrid physics‑ML
+
+All data are regridded to a common \(0.25^\circ\) grid using conservative remapping.
+
+---
+
+## Key Results
+
+### Detection Performance
+
+PhysXAI achieves an **AUROC of 0.91** at day 5 forecasts, substantially outperforming the best baseline (PhysMetrics Ensemble: 0.80, \(p < 0.001\)). Performance remains above **0.83** even at day 10.
+
+### Localisation and Diagnosis
+
+- **IoU**: \(0.62 \pm 0.05\) for synthetic perturbations
+- **Macro‑F1**: 0.79 across seven violation types
+
+### Calibration
+
+- **ECE**: \(0.031 \pm 0.008\) (well‑calibrated)
+
+### Ablation Study
+
+| **Variant** | **AUROC** |
+|-------------|-----------|
+| Full PhysXAI | **0.91** |
+| w/o Contrastive | 0.85 |
+| w/o Conservation | 0.86 |
+| w/o Dynamics | 0.87 |
+| w/o Spectral | 0.88 |
+| w/o Cross‑Variable | 0.89 |
+| w/o Spatiotemporal | 0.90 |
+| w/o Fusion | 0.88 |
+| Raw Metrics Only | 0.75 |
+
+### Generalisation
+
+- **Cross‑model** (GraphCast/Pangu → NeuralGCM): 0.91 → 0.88 (drop 0.03)
+- **Cross‑region** (one hemisphere → other): 0.91 → 0.86 (drop 0.05)
+
+---
+
+## Getting Started
+
+### Installation
+
+Clone the repository:
+
+```bash
+git clone https://github.com/start-again-06/PhysXAI-Diagnosing-Physical-Hallucinations-in-Weather-and-Climate-Foundation-Models.git
+cd PhysXAI-Diagnosing-Physical-Hallucinations-in-Weather-and-Climate-Foundation-Models
+```
+
+## Citation
+
+If you use this framework, code, or implementation in your research, please cite our work:
+
+```bibtex
+@article{physxai2026,
+  title={PhysXAI: A Theoretical Framework for Diagnosing Physical Hallucinations in Weather and Climate Foundation Models},
+  author={Anonymous},
+  journal={arXiv preprint},
+  year={2026},
+  note={Under review for NeurIPS 2026},
+  doi={10.48550/arXiv.XXXX.XXXXX}
+}
+```
 
