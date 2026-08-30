@@ -116,9 +116,161 @@ flowchart TD
 
 ### Physical Hallucination Definition
 
-Let $\X_t \in \mathbb{R}^{C \times H \times W}$ denote the true atmospheric state at time $t$, where $C$ is the number of prognostic variables, and $H,W$ are the spatial grid dimensions. A foundation model $f_\theta$ produces a forecast $\hat{\X}_{t+\tau} = f_\theta(\X_t)$ for lead time $\tau$. The forecast error is defined as $\bm{\epsilon} = \hat{\X}_{t+\tau} - \X_{t+\tau} \in \mathbb{R}^{C \times H \times W}$, and we measure its magnitude via a suitable norm $\|\bm{\epsilon}\|$.
+## Problem Formulation
 
-To assess physical plausibility, we define a set of residual functionals $\mathcal{R} = \{r_1, \dots, r_K\}$, where each $r_k : \mathbb{R}^{C \times H \times W} \to \mathbb{R}$ or $\mathbb{R}^{H \times W}$ measures the violation of a specific physical law. For example, $r_1$ may quantify mass divergence, $r_2$ hydrostatic imbalance, and $r_3$ spectral slope deviation. Each residual is assumed differentiable and its magnitude is interpretable in physical units.
+### State and Forecast
+
+Let the true atmospheric state at time $t$ be denoted by:
+
+$$
+\X_t \in \mathbb{R}^{C \times H \times W},
+$$
+
+where $C$ is the number of prognostic variables, and $H,W$ are the spatial grid dimensions. A foundation model $f_\theta$ produces a forecast for lead time $\tau$:
+
+$$
+\hat{\X}_{t+\tau} = f_\theta(\X_t).
+$$
+
+The forecast error is defined as the difference between the forecast and the true state:
+
+$$
+\bm{\epsilon} = \hat{\X}_{t+\tau} - \X_{t+\tau} \in \mathbb{R}^{C \times H \times W},
+$$
+
+and we measure its magnitude via a suitable norm $\|\bm{\epsilon}\|$ (e.g., RMSE).
+
+---
+
+### Physical Residual Functionals
+
+To assess physical plausibility, we introduce a set of residual functionals:
+
+$$
+\mathcal{R} = \{ r_1, r_2, \dots, r_K \},
+$$
+
+where each $r_k : \mathbb{R}^{C \times H \times W} \to \mathbb{R}$ or $\mathbb{R}^{H \times W}$ quantifies the violation of a specific physical law. Examples include:
+
+- **Mass divergence**: $r_1(\X) = \nabla \cdot (\rho \mathbf{u})$
+- **Hydrostatic imbalance**: $r_2(\X) = \dfrac{\partial \Phi}{\partial p} + \dfrac{RT}{p}$
+- **Spectral slope deviation**: $r_3(\X) = \gamma_{\text{fore}} - (-\tfrac{5}{3})$
+
+Each residual is assumed **differentiable** and its magnitude is **interpretable in physical units**.
+
+---
+
+### Definition: Physical Hallucination
+
+A forecast $\hat{\X}$ is said to be a **physical hallucination** if there exists at least one residual $k \in \{1,\dots,K\}$ such that either of the following conditions holds:
+
+#### Case 1: Accurate but Inconsistent
+
+The forecast is numerically accurate ($\|\bm{\epsilon}\|$ small) yet violates a physical constraint:
+
+$$
+\|r_k(\hat{\X})\| > \theta_k \quad \text{and} \quad \|\bm{\epsilon}\| < \delta,
+$$
+
+where:
+- $\theta_k > 0$ is a climatological threshold for the $k$-th residual (e.g., 95th percentile over training data),
+- $\delta > 0$ is an error tolerance (e.g., median RMSE of the foundation model).
+
+#### Case 2: Severe Violation
+
+The forecast violates a physical law regardless of its numerical error:
+
+$$
+\|r_k(\hat{\X})\| > \Theta_k,
+$$
+
+where $\Theta_k \gg \theta_k$ is a severe violation threshold (e.g., 99.9th percentile).
+
+#### Binary Hallucination Indicator
+
+Based on the above, we define a binary indicator:
+
+$$
+y(\hat{\X}) =
+\begin{cases}
+1, & \exists k \text{ such that } \bigl( \|r_k(\hat{\X})\| > \theta_k \text{ and } \|\bm{\epsilon}\| < \delta \bigr) \text{ or } \|r_k(\hat{\X})\| > \Theta_k, \\
+0, & \text{otherwise}.
+\end{cases}
+$$
+
+---
+
+### Diagnostic Task
+
+Given a forecast $\hat{\X}_{t+\tau}$ (and optionally recent states and a reference analysis), the goal is to learn a mapping $\Phi$ that produces:
+
+| **Output** | **Notation** | **Domain** | **Description** |
+|------------|--------------|------------|-----------------|
+| **Hallucination Score** | $h = \Phi_{\text{det}}(\hat{\X})$ | $[0,1]$ | Estimated probability of hallucination |
+| **Localisation Heatmap** | $m = \Phi_{\text{loc}}(\hat{\X})$ | $[0,1]^{H \times W}$ | Spatial map of violation likelihood |
+| **Violation Type** | $d = \Phi_{\text{diag}}(\hat{\X})$ | $\{1,\dots,K\}$ | Classified violated mechanism |
+| **Uncertainty** | $(\alpha,\beta) = \Phi_{\text{unc}}(\hat{\X})$ | $\mathbb{R}_{>0}^2$ | Beta distribution parameters for confidence |
+
+The hallucination score $h$ is the primary detection output; $m$ localises the violation; $d$ identifies the physical law violated; and $(\alpha,\beta)$ models the uncertainty of $h$ via a Beta distribution:
+
+$$
+h \sim \text{Beta}(\alpha, \beta).
+$$
+
+---
+
+### Multi‑Task Loss
+
+The training objective is a weighted sum of five loss terms:
+
+$$
+\mathcal{L}_{\text{total}} =
+\lambda_{\text{det}} \mathcal{L}_{\text{BCE}} +
+\lambda_{\text{loc}} \mathcal{L}_{\text{Dice}} +
+\lambda_{\text{diag}} \mathcal{L}_{\text{CE}} +
+\lambda_{\text{unc}} \mathcal{L}_{\text{NLL}} +
+\lambda_{\text{cont}} \mathcal{L}_{\text{InfoNCE}}.
+$$
+
+| **Loss Term** | **Symbol** | **Description** |
+|---------------|------------|-----------------|
+| Detection | $\mathcal{L}_{\text{BCE}}$ | Binary cross‑entropy for $h$ |
+| Localisation | $\mathcal{L}_{\text{Dice}}$ | Dice loss for spatial heatmap $m$ |
+| Diagnosis | $\mathcal{L}_{\text{CE}}$ | Cross‑entropy for violation type $d$ |
+| Uncertainty | $\mathcal{L}_{\text{NLL}}$ | Negative log‑likelihood for Beta distribution |
+| Contrastive | $\mathcal{L}_{\text{InfoNCE}}$ | InfoNCE loss for contrastive learning |
+
+The weights $\lambda_{\cdot}$ are **learned adaptively** using the uncertainty‑weighting scheme:
+
+$$
+\mathcal{L}_{\text{total}} = \sum_{i=1}^5 \frac{1}{2\sigma_i^2} \mathcal{L}_i + \log \sigma_i,
+$$
+
+where $\sigma_i$ are learnable parameters that automatically balance the contributions of each task.
+
+---
+
+### Theoretical Guarantee: Latent‑Space Isometry
+
+Under the residual‑separation condition, the contrastive loss aligns the latent representation $\mathbf{z}$ with the physical residual vector $\mathbf{r}(\X) = (r_1(\X),\dots,r_K(\X))$:
+
+$$
+\|\mathbf{z}(\X_1) - \mathbf{z}(\X_2)\| = \kappa \|\mathbf{r}(\X_1) - \mathbf{r}(\X_2)\| + o(1),
+$$
+
+for some $\kappa > 0$ as the number of negative samples tends to infinity. This ensures that the hallucination score $h = \sigma(\mathbf{w}^\top \mathbf{z})$ is a direct function of physical residuals, not spurious error correlations.
+
+---
+
+### Error‑Consistency Trade‑off
+
+If the forecast error is bounded by $\eta$ ($\|\bm{\epsilon}\| \le \eta$), the decision boundary is separated from the physically consistent manifold by a margin of:
+
+$$
+\gamma = \kappa \min_k \theta_k - \kappa \max_k \|\mathbf{r}(\hat{\X}) - \mathbf{r}(\X)\|,
+$$
+
+which is positive for physically consistent forecasts, guaranteeing robustness against small numerical errors.
 
 ---
 
