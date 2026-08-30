@@ -362,11 +362,11 @@ We define five families of physical residual functionals, each quantifying a spe
 
 | **Branch** | **Variables** | **Mathematical Formulation** |
 |------------|---------------|------------------------------|
-| **Conservation** | Mass, Moisture, Energy | \(r_M = \dfrac{\|M_{\text{fore}} - M_{\text{ref}}\|}{M_{\text{ref}}}\) |
-| **Dynamics** | Hydrostatic, Geostrophic | \(r_H = \dfrac{\partial \Phi}{\partial p} + \dfrac{RT}{p}\),  \(r_G = \left\|\mathbf{u} + \dfrac{1}{f} \nabla \Phi\right\|\) |
+| **Conservation** | Mass, Moisture, Energy | \(r_M = \dfrac{\| M_{\text{fore}} - M_{\text{ref}} \|}{M_{\text{ref}}}\) |
+| **Dynamics** | Hydrostatic, Geostrophic | \(r_H = \dfrac{\partial \Phi}{\partial p} + \dfrac{RT}{p}\), \(r_G = \left\| \mathbf{u} + \dfrac{1}{f} \nabla \Phi \right\|\) |
 | **Spectral** | Kinetic Energy Spectrum, Slope | \(r_S = \left( \sum_k \left( \hat{E}_{\text{fore}}(k) - \hat{E}_{\text{ref}}(k) \right)^2 \right)^{1/2}\) |
-| **Cross‑Variable** | Clausius–Clapeyron, Potential Temperature | \(r_{CC} = \dfrac{\|q_s(T,p) - q\|}{q_s(T,p)}\) |
-| **Spatiotemporal** | Temporal Coherence | \(r_{\text{temp}} = \|\partial_t \X - \text{smooth}(\partial_t \X)\|\) |
+| **Cross‑Variable** | Clausius–Clapeyron, Potential Temperature | \(r_{CC} = \dfrac{\| q_s(T,p) - q \|}{q_s(T,p)}\) |
+| **Spatiotemporal** | Temporal Coherence | \(r_{\text{temp}} = \| \partial_t \X - \text{smooth}(\partial_t \X) \|\) |
 
 Each branch outputs a spatial residual map, which is passed through a small convolutional subnetwork to produce branch‑specific features \(\mathbf{F}_k \in \mathbb{R}^{D \times H \times W}\).
 
@@ -377,12 +377,12 @@ Each branch outputs a spatial residual map, which is passed through a small conv
 The fused representation \(\mathbf{Z}\) is computed as:
 
 \[
-\mathbf{Z} = \sum_{k=1}^5 \text{softmax}\left( \frac{\mathbf{Q}\mathbf{K}_k^\top}{\sqrt{D}} \right) \mathbf{V}_k \in \mathbb{R}^{D \times H \times W},
+\mathbf{Z} = \sum_{k=1}^5 \text{softmax}\left( \frac{\mathbf{Q} \mathbf{K}_k^\top}{\sqrt{D}} \right) \mathbf{V}_k \in \mathbb{R}^{D \times H \times W},
 \]
 
 where:
 - \(\mathbf{Q}\) is a linear projection of the encoder features \(\mathbf{E}\),
-- \(\mathbf{K}_k, \mathbf{V}_k\) are linear projections of each branch feature \(\mathbf{F}_k\).
+- \(\mathbf{K}_k\) and \(\mathbf{V}_k\) are linear projections of each branch feature \(\mathbf{F}_k\).
 
 This allows the model to attend to the most relevant physical features for each spatial location.
 
@@ -396,7 +396,10 @@ The InfoNCE loss encourages physically consistent states to cluster together in 
 \mathcal{L}_{\text{InfoNCE}} = -\mathbb{E}\left[ \log \frac{\exp(\mathbf{z}_a \cdot \mathbf{z}_b / \tau)}{\exp(\mathbf{z}_a \cdot \mathbf{z}_b / \tau) + \sum_{n \in \mathcal{N}} \exp(\mathbf{z}_a \cdot \mathbf{z}_n / \tau)} \right],
 \]
 
-where \(\mathbf{z}\) is the projected latent vector, \(\tau > 0\) is a temperature parameter, and \(\mathcal{N}\) is the set of negative samples.
+where:
+- \(\mathbf{z}\) is the projected latent vector,
+- \(\tau > 0\) is a temperature parameter,
+- \(\mathcal{N}\) is the set of negative samples.
 
 ---
 
@@ -414,6 +417,8 @@ for some constant \(\kappa > 0\), in the limit of infinite negative samples.
 
 This ensures that the hallucination score \(h = \sigma(\mathbf{w}^\top \mathbf{z})\) directly reflects physical residuals rather than spurious error correlations.
 
+---
+
 ### Proposition 1: Error‑Consistency Trade‑off
 
 If the forecast error is bounded by \(\|\bm{\epsilon}\| \le \eta\), the decision boundary in latent space is separated from the physically consistent manifold by a margin:
@@ -423,8 +428,6 @@ If the forecast error is bounded by \(\|\bm{\epsilon}\| \le \eta\), the decision
 \]
 
 which is positive for physically consistent forecasts. Thus, the model does not incorrectly flag physically consistent forecasts as hallucinations.
-
----
 
 ## Datasets and Foundation Models
 
