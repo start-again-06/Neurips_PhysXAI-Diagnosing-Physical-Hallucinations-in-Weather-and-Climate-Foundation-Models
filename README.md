@@ -356,21 +356,21 @@ Setting this to zero gives $\sigma_i^2 = \mathcal{L}_i$, meaning tasks with larg
 
 ## Architecture Components
 
-## Architecture Components
-
 ### Physical Residual Branches
 
 We define five families of physical residual functionals, each quantifying a specific physical law violation:
 
+## Physics-Based Residual Branches
+
 | **Branch** | **Variables** | **Mathematical Formulation** |
 |------------|---------------|------------------------------|
-| **Conservation** | Mass, Moisture, Energy | $$ r_M = \frac{\| M_{\text{fore}} - M_{\text{ref}} \|}{M_{\text{ref}}} $$ |
-| **Dynamics** | Hydrostatic, Geostrophic | $$ r_H = \frac{\partial \Phi}{\partial p} + \frac{RT}{p}, \quad r_G = \left\| \mathbf{u} + \frac{1}{f} \nabla \Phi \right\| $$ |
-| **Spectral** | Kinetic Energy Spectrum, Slope | $$ r_S = \left( \sum_k \left( \hat{E}_{\text{fore}}(k) - \hat{E}_{\text{ref}}(k) \right)^2 \right)^{1/2} $$ |
-| **Cross‑Variable** | Clausius–Clapeyron, Potential Temperature | $$ r_{CC} = \frac{\| q_s(T,p) - q \|}{q_s(T,p)} $$ |
-| **Spatiotemporal** | Temporal Coherence | $$ r_{\text{temp}} = \| \partial_t \X - \text{smooth}(\partial_t \X) \| $$ |
+| **Conservation** | Mass, Moisture, Energy | $r_M = \dfrac{\lVert M_{\text{fore}} - M_{\text{ref}} \rVert}{M_{\text{ref}}}$ |
+| **Dynamics** | Hydrostatic, Geostrophic | $r_H = \dfrac{\partial \Phi}{\partial p} + \dfrac{RT}{p}, \quad r_G = \left\lVert \mathbf{u} + \dfrac{1}{f} \nabla \Phi \right\rVert$ |
+| **Spectral** | Kinetic Energy Spectrum, Slope | $r_S = \left( \sum_k \left( \hat{E}_{\text{fore}}(k) - \hat{E}_{\text{ref}}(k) \right)^2 \right)^{1/2}$ |
+| **Cross-Variable** | Clausius–Clapeyron, Potential Temperature | $r_{CC} = \dfrac{\lVert q_s(T,p) - q \rVert}{q_s(T,p)}$ |
+| **Spatiotemporal** | Temporal Coherence | $r_{\text{temp}} = \lVert \partial_t \mathbf{X} - \text{smooth}(\partial_t \mathbf{X}) \rVert$ |
 
-Each branch outputs a spatial residual map, which is passed through a small convolutional subnetwork to produce branch‑specific features $\mathbf{F}_k \in \mathbb{R}^{D \times H \times W}$.
+Each branch outputs a spatial residual map, which is passed through a small convolutional subnetwork to produce branch-specific features $\mathbf{F}_k \in \mathbb{R}^{D \times H \times W}$.
 
 ---
 
