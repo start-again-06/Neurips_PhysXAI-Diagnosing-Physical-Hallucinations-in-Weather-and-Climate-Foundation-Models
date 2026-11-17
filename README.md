@@ -510,13 +510,12 @@ cd PhysXAI-Diagnosing-Physical-Hallucinations-in-Weather-and-Climate-Foundation-
 If you use this framework, code, or implementation in your research, please cite our work:
 
 ```bibtex
-@article{physxai2026,
-  title={PhysXAI: A Theoretical Framework for Diagnosing Physical Hallucinations in Weather and Climate Foundation Models},
-  author={Anonymous},
-  journal={arXiv preprint},
-  year={2026},
-  note={Under review for NeurIPS 2026},
-  doi={10.48550/arXiv.XXXX.XXXXX}
+@inproceedings{mahapatra2026physxai,
+  title     = {PhysXAI: A Theoretical Framework for Diagnosing Physical Hallucinations in Weather and Climate Foundation Models},
+  author    = {Mahapatra, Anjan and Raj, Nikhil},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2026},
+  note      = {Accepted}
 }
 ```
 
