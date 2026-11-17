@@ -13,7 +13,7 @@
 
 ## Overview
 
-This repository contains the complete **PyTorch implementation** of the theoretical framework presented in our NeurIPS 2026 paper:
+This repository contains the complete **PyTorch implementation** of the theoretical framework to be presented in our NeurIPS 2026, Sydney, Australia:
 
 > **PhysXAI: A Theoretical Framework for Diagnosing Physical Hallucinations in Weather and Climate Foundation Models**
 
