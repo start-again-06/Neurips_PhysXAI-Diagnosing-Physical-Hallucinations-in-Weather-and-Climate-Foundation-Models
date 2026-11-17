@@ -1,0 +1,25 @@
+# Defaults follow Table 4 of the paper where it gives values.
+# Grid size and pressure levels are not given in the paper; these are placeholders for CPU runs.
+grid:
+  n_lat: 32
+  n_lon: 64
+  pressures_hpa: [850, 500, 250, 100]
+
+model:
+  base_channels: 64
+  encoder_channels: 128
+  physics_dim: 64
+  contrastive_dim: 128
+  n_heads: 8
+  n_classes: 7
+
+train:
+  batch_size: 32
+  lr: 0.0001
+  weight_decay: 0.00001
+  epochs: 50
+  steps_per_epoch: 100
+  tau: 0.1
+  seed: 0
+  eval_batches: 8
+  log_every: 20
