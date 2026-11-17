@@ -366,9 +366,9 @@ We define five families of physical residual functionals, each quantifying a spe
 |------------|---------------|------------------------------|
 | **Conservation** | Mass, Moisture, Energy | $r_M = \dfrac{\lVert M_{\text{fore}} - M_{\text{ref}} \rVert}{M_{\text{ref}}}$ |
 | **Dynamics** | Hydrostatic, Geostrophic | $r_H = \dfrac{\partial \Phi}{\partial p} + \dfrac{RT}{p}, \quad r_G = \left\lVert \mathbf{u} + \dfrac{1}{f} \nabla \Phi \right\rVert$ |
-| **Spectral** | Kinetic Energy Spectrum, Slope | $$
+| **Spectral** | Kinetic Energy Spectrum, Slope |```math
 r_S = \left( \sum_k \left( \hat{E}_{\text{fore}}(k) - \hat{E}_{\text{ref}}(k) \right)^2 \right)^{1/2}
-$$
+```
 $$ |
 | **Cross-Variable** | Clausius–Clapeyron, Potential Temperature | $r_{CC} = \dfrac{\lVert q_s(T,p) - q \rVert}{q_s(T,p)}$ |
 | **Spatiotemporal** | Temporal Coherence | $r_{\text{temp}} = \lVert \partial_t \mathbf{X} - \text{smooth}(\partial_t \mathbf{X}) \rVert$ |
